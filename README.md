@@ -6,6 +6,16 @@ SPHunter is a SharePoint Online reconnaissance tool that hunts for exposed crede
 
 *For authorized security testing only.*
 
+## Installation
+
+```bash
+git clone https://github.com/GheekyByt3/SPHunter.git
+cd SPHunter
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
 ## Features
 
 - **Three scan modes** — `search` (fast KQL queries), `crawl` (deep recursive walk), or `both` (combined, deduplicated)
@@ -19,16 +29,6 @@ SPHunter is a SharePoint Online reconnaissance tool that hunts for exposed crede
 - **Rich reporting** — Interactive HTML, CSV, and JSON output
 - **Rate limit handling** — Automatic throttling and retry on 429 responses
 - **Live console output** — Color-coded findings as they're discovered
-
-## Installation
-
-```bash
-git clone https://github.com/GheekyByt3/SPHunter.git
-cd SPHunter
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
 
 ## Quick Start
 
