@@ -1,0 +1,358 @@
+# SPHunter Search Queries Configuration
+#
+# These KQL (Keyword Query Language) queries are sent to SharePoint's
+# Search API to quickly find sensitive files across the tenant.
+#
+# Comprehensive coverage of credential files, secrets, PII,
+# infrastructure configs, and more.
+#
+# Each query has:
+#   name:        Human-readable label
+#   kql:         The KQL search query
+#   severity:    Expected severity of matches (critical/high/medium/low)
+#   description: What this query looks for
+#
+# KQL reference:
+#   filename:      Match file name
+#   filetype:      Match file extension
+#   "exact phrase": Match exact text in content/metadata
+#   AND / OR / NOT: Boolean operators
+#   path:          Scope to a URL path
+#
+# You can add your own queries for engagement-specific targets.
+
+queries:
+
+  # ═══════════════════════════════════════════════════════════════
+  # CRITICAL — Direct credential / key exposure
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- Password Managers (SnaffPoint: PassMgrsByExtension) ---
+  - name: "Password Manager Databases"
+    kql: "filetype:kdbx OR filetype:kdb OR filetype:psafe3 OR filetype:kwallet OR filetype:keychain OR filetype:agilekeychain OR filetype:cred"
+    severity: critical
+    description: "KeePass, Password Safe, KWallet, macOS Keychain, 1Password databases"
+
+  # --- Private Keys & Certificates (SnaffPoint: SSHKeysByFileName, InlinePrivateKey) ---
+  - name: "Private Keys"
+    kql: "filetype:pem OR filetype:ppk OR filetype:key OR filetype:pfx OR filetype:p12 OR filetype:cer OR filetype:crt OR filetype:csr"
+    severity: critical
+    description: "Private keys, certificates, and certificate stores"
+
+  - name: "SSH Keys"
+    kql: "filename:id_rsa OR filename:id_dsa OR filename:id_ecdsa OR filename:id_ed25519 OR filename:authorized_keys OR filename:known_hosts"
+    severity: critical
+    description: "SSH private keys and auth files"
+
+  - name: "Inline Private Keys"
+    kql: "\"BEGIN RSA PRIVATE KEY\" OR \"BEGIN PRIVATE KEY\" OR \"BEGIN EC PRIVATE KEY\" OR \"BEGIN OPENSSH PRIVATE KEY\" OR \"BEGIN DSA PRIVATE KEY\""
+    severity: critical
+    description: "Embedded private keys inside documents"
+
+  # --- Web Configs (SnaffPoint: NetConfigCreds, NetConfigFileByName) ---
+  - name: "ASP.NET Config Files"
+    kql: "filename:web.config OR filename:app.config OR filename:appsettings.json OR filename:machine.config"
+    severity: critical
+    description: "ASP.NET configuration files with connection strings and credentials"
+
+  - name: ".NET Config Credentials"
+    kql: "(filetype:config OR filetype:xml) AND (\"connectionString\" OR \"password\" OR \"pwd\")"
+    severity: critical
+    description: "Credentials in .NET configuration files"
+
+  # --- Remote Access (SnaffPoint: RdpPasswords, RemoteAccessConfByExtension, RemoteAccessConfByName) ---
+  - name: "RDP Files"
+    kql: "filetype:rdp"
+    severity: critical
+    description: "Remote Desktop connection files (may contain saved credentials)"
+
+  - name: "VPN Configs"
+    kql: "filetype:ovpn OR filetype:vpn OR filetype:pcf OR filetype:tblk"
+    severity: critical
+    description: "VPN configuration files"
+
+  - name: "Remote Access Configs"
+    kql: "filename:*.rdg OR filename:*.rtsz OR filename:*.sdtid OR filename:*.ica"
+    severity: critical
+    description: "Remote Desktop Gateway, SecurID, Citrix ICA config files"
+
+  # --- Windows Deployment (SnaffPoint: UnattendXML, DeployImageByExtension, DomainJoinCredsByPath) ---
+  - name: "Unattend/Sysprep XML"
+    kql: "filename:unattend OR filename:autounattend OR filename:sysprep"
+    severity: critical
+    description: "Windows unattended install files with local admin credentials"
+
+  - name: "Deployment Images"
+    kql: "filetype:vmdk OR filetype:vhd OR filetype:vhdx OR filetype:ova OR filetype:ovf"
+    severity: critical
+    description: "Virtual machine disk images (may contain OS credentials)"
+
+  - name: "Domain Join Credentials"
+    kql: "\"domain join\" AND (\"password\" OR \"credential\" OR \"account\")"
+    severity: critical
+    description: "Domain join credential documentation"
+
+  # --- CI/CD & DevOps (SnaffPoint: JenkinsByName) ---
+  - name: "Jenkins Secrets"
+    kql: "filename:credentials.xml OR filename:master.key OR filename:hudson.util.Secret OR filename:secrets.xml"
+    severity: critical
+    description: "Jenkins credential storage files"
+
+  - name: "AWS Credentials"
+    kql: "filename:credentials AND (filename:aws OR \"aws_access_key\") OR \"AKIA\""
+    severity: critical
+    description: "AWS credential files and access keys"
+
+  - name: "Azure Publish Settings"
+    kql: "filetype:publishsettings"
+    severity: critical
+    description: "Azure publish settings with embedded certificates"
+
+  # --- CyberArk (SnaffPoint: CyberArkCredFile) ---
+  - name: "CyberArk Credential Files"
+    kql: "filename:credfile OR filename:\"Credential File\" OR filetype:cred"
+    severity: critical
+    description: "CyberArk credential vault files"
+
+  # --- PowerShell Credentials (SnaffPoint: PsCredentials) ---
+  - name: "PowerShell Credential Scripts"
+    kql: "(filetype:ps1 OR filetype:psm1 OR filetype:psd1) AND (\"SecureString\" OR \"AsPlainText\" OR \"Net.NetworkCredential\" OR \"PSCredential\")"
+    severity: critical
+    description: "PowerShell scripts containing credential handling"
+
+  # --- CMD Credentials (SnaffPoint: CmdCredentials) ---
+  - name: "CMD/Batch Credentials"
+    kql: "(filetype:bat OR filetype:cmd) AND (\"password\" OR \"net use\" OR \"/user:\" OR \"runas\")"
+    severity: critical
+    description: "Batch scripts with credentials or runas commands"
+
+  # ═══════════════════════════════════════════════════════════════
+  # HIGH — Sensitive data files & credential content
+  # ═══════════════════════════════════════════════════════════════
+
+  # --- Database Connection Strings (SnaffPoint: CSharpDbConnStrings, JavaDbConnStrings, PHPDbConnStrings, PyDbConnStrings, RubyDbConnStrings, DbConnStringPw) ---
+  - name: "C#/.NET DB Connection Strings"
+    kql: "(filetype:cs OR filetype:config OR filetype:aspx) AND (\"SqlConnection\" OR \"connectionString\" OR \"Data Source=\" OR \"Initial Catalog=\")"
+    severity: high
+    description: "C# and .NET database connection strings"
+
+  - name: "Java DB Connection Strings"
+    kql: "(filetype:java OR filetype:properties OR filetype:xml) AND (\"jdbc:\" OR \"DriverManager\" OR \"hibernate.connection\")"
+    severity: high
+    description: "Java JDBC database connection strings"
+
+  - name: "PHP DB Connection Strings"
+    kql: "(filetype:php OR filetype:inc) AND (\"mysql_connect\" OR \"mysqli_connect\" OR \"PDO\" OR \"pg_connect\")"
+    severity: high
+    description: "PHP database connection functions"
+
+  - name: "Python DB Connection Strings"
+    kql: "(filetype:py) AND (\"psycopg2\" OR \"pymysql\" OR \"sqlalchemy\" OR \"connection_string\" OR \"DATABASE_URL\")"
+    severity: high
+    description: "Python database connection strings"
+
+  - name: "Ruby DB Connection Strings"
+    kql: "(filetype:rb OR filename:database.yml) AND (\"adapter:\" OR \"ActiveRecord\" OR \"PG::Connection\" OR \"Mysql2::Client\")"
+    severity: high
+    description: "Ruby database connection configurations"
+
+  - name: "Generic DB Connection Passwords"
+    kql: "(\"Data Source\" OR \"Server=\") AND (\"Password=\" OR \"Pwd=\")"
+    severity: high
+    description: "Database connection strings with embedded passwords"
+
+  # --- Viewstate Keys (SnaffPoint: CSharpViewstateKeys) ---
+  - name: "ASP.NET Viewstate Keys"
+    kql: "\"machineKey\" AND (\"validationKey\" OR \"decryptionKey\")"
+    severity: high
+    description: "ASP.NET machine keys for viewstate attacks"
+
+  # --- SQL Account Creation (SnaffPoint: SqlAccountCreation) ---
+  - name: "SQL Account Creation Scripts"
+    kql: "(filetype:sql) AND (\"CREATE LOGIN\" OR \"CREATE USER\" OR \"ALTER LOGIN\" OR \"sp_addlogin\" OR \"IDENTIFIED BY\")"
+    severity: high
+    description: "SQL scripts creating database accounts"
+
+  # --- Password in Filename ---
+  - name: "Password in Filename"
+    kql: "filename:password OR filename:passwd OR filename:credentials OR filename:secrets OR filename:creds"
+    severity: high
+    description: "Files with credential-related names"
+
+  # --- Environment & Secret Files ---
+  - name: "Environment Files"
+    kql: "filename:.env OR filename:.env.production OR filename:.env.local"
+    severity: high
+    description: "Environment variable files with API keys and secrets"
+
+  - name: "Git Credentials"
+    kql: "filename:.git-credentials OR filename:.gitconfig OR filename:.netrc"
+    severity: high
+    description: "Git and netrc credential store files"
+
+  # --- FTP Configs (SnaffPoint: FtpClientConfigConfigByName, FtpServerConfigByName) ---
+  - name: "FTP Client Configs"
+    kql: "filename:filezilla.xml OR filename:recentservers.xml OR filename:sitemanager.xml OR filename:wcx_ftp.ini OR filename:ws_ftp.ini"
+    severity: high
+    description: "FTP client configuration with saved credentials"
+
+  - name: "FTP Server Configs"
+    kql: "filename:proftpd.conf OR filename:vsftpd.conf OR filename:ftpd.conf OR filename:pure-ftpd.conf"
+    severity: high
+    description: "FTP server configuration files"
+
+  # --- Browser Stored Credentials (SnaffPoint: FirefoxLoginsJson) ---
+  - name: "Browser Saved Credentials"
+    kql: "filename:logins.json OR filename:Login Data OR filename:cookies.sqlite OR filename:signons.sqlite"
+    severity: high
+    description: "Browser stored login data and cookies"
+
+  # --- Database Files (SnaffPoint: DatabaseByExtension, DbMgtConfigByName) ---
+  - name: "Database Files & Backups"
+    kql: "filetype:sql OR filetype:bak OR filetype:mdf OR filetype:ldf OR filetype:sqlite OR filetype:dump OR filetype:sqlite3 OR filetype:db"
+    severity: high
+    description: "Database files, backups, and dumps"
+
+  - name: "DB Management Configs"
+    kql: "filename:my.cnf OR filename:my.ini OR filename:pg_hba.conf OR filename:mongod.conf OR filename:redis.conf OR filename:elasticsearch.yml"
+    severity: high
+    description: "Database management configuration files"
+
+  # --- Infrastructure as Code (SnaffPoint: InfraAsCodeConfigByExtension) ---
+  - name: "Terraform State & Configs"
+    kql: "filetype:tfstate OR filetype:tf OR filetype:tfvars"
+    severity: high
+    description: "Terraform state files and variable definitions with secrets"
+
+  - name: "Ansible Configs"
+    kql: "filename:ansible.cfg OR filename:vault.yml OR (filename:playbook AND filetype:yml)"
+    severity: high
+    description: "Ansible configuration and vault files"
+
+  - name: "Docker Compose"
+    kql: "filename:docker-compose OR filename:Dockerfile"
+    severity: high
+    description: "Docker configs with embedded credentials"
+
+  - name: "Kubernetes Secrets"
+    kql: "(filetype:yaml OR filetype:yml) AND (\"kind: Secret\" OR \"kind: ConfigMap\")"
+    severity: high
+    description: "Kubernetes secret and configmap manifests"
+
+  # --- Memory Dumps (SnaffPoint: MemDumpByExtension, MemDumpByName) ---
+  - name: "Memory Dumps"
+    kql: "filetype:dmp OR filetype:hdmp OR filetype:mdmp OR filetype:core OR filename:lsass OR filename:memory.dmp"
+    severity: high
+    description: "Memory dump files (may contain credentials)"
+
+  # --- Network Captures (SnaffPoint: PcapByExtension) ---
+  - name: "Network Packet Captures"
+    kql: "filetype:pcap OR filetype:pcapng OR filetype:cap OR filetype:snoop"
+    severity: high
+    description: "Network packet capture files"
+
+  # --- Content Search: Passwords & API Keys ---
+  - name: "Content with Passwords"
+    kql: "\"password\" AND (\"admin\" OR \"root\" OR \"sa\" OR \"service account\" OR \"svc_\")"
+    severity: high
+    description: "Documents mentioning passwords with admin/service accounts"
+
+  - name: "Content with Connection Strings"
+    kql: "\"connection string\" OR \"connectionString\" OR \"Data Source=\" OR \"Server=\" OR \"jdbc:\""
+    severity: high
+    description: "Documents containing database connection strings"
+
+  - name: "Content with API Keys"
+    kql: "\"api_key\" OR \"api-key\" OR \"apikey\" OR \"access_token\" OR \"secret_key\" OR \"client_secret\""
+    severity: high
+    description: "Documents mentioning API keys or tokens"
+
+  - name: "Network Diagrams"
+    kql: "(filename:network AND filename:diagram) OR filename:topology OR filetype:vsdx OR filetype:vsd"
+    severity: high
+    description: "Network infrastructure diagrams"
+
+  # --- Ruby Configs (SnaffPoint: RubyConfigFiles) ---
+  - name: "Ruby Framework Configs"
+    kql: "filename:database.yml OR filename:secrets.yml OR filename:master.key OR (filename:credentials AND filetype:yml)"
+    severity: high
+    description: "Ruby on Rails secrets and credential configurations"
+
+  # --- Shell History (SnaffPoint: ShellHistoryByName) ---
+  - name: "Shell History Files"
+    kql: "filename:.bash_history OR filename:.zsh_history OR filename:.sh_history OR filename:.psreadline OR filename:ConsoleHost_history.txt"
+    severity: high
+    description: "Shell command history (may contain typed passwords)"
+
+  # ═══════════════════════════════════════════════════════════════
+  # MEDIUM — Potentially sensitive
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: "PowerShell Scripts"
+    kql: "filetype:ps1 OR filetype:psm1 OR filetype:psd1"
+    severity: medium
+    description: "PowerShell scripts"
+
+  - name: "Batch/Shell Scripts"
+    kql: "filetype:bat OR filetype:cmd OR filetype:sh OR filetype:bash OR filetype:vbs OR filetype:wsf"
+    severity: medium
+    description: "Batch, shell, and VBScript files"
+
+  - name: "Config Files"
+    kql: "filetype:ini OR filetype:cfg OR filetype:conf OR filetype:config OR filetype:properties OR filetype:toml"
+    severity: medium
+    description: "Configuration files"
+
+  - name: "Config Passwords (Noisy)"
+    kql: "(filetype:ini OR filetype:cfg OR filetype:conf OR filetype:xml OR filetype:json) AND (\"password\" OR \"passwd\" OR \"pwd\")"
+    severity: medium
+    description: "Configuration files mentioning passwords"
+
+  - name: "Salary/Financial Documents"
+    kql: "filename:salary OR filename:payroll OR filename:compensation OR filename:bonus OR filename:budget"
+    severity: medium
+    description: "Financial and salary documents"
+
+  - name: "IT Runbooks/SOPs"
+    kql: "filename:runbook OR filename:playbook OR filename:\"setup guide\" OR filename:\"install guide\" OR filename:\"build guide\""
+    severity: medium
+    description: "IT operational documentation"
+
+  - name: "SSN/PII Documents"
+    kql: "filename:ssn OR filename:\"social security\" OR filename:\"tax id\" OR filename:passport OR filename:\"driver license\""
+    severity: medium
+    description: "Files likely containing PII"
+
+  - name: "Content with Internal IPs"
+    kql: "\"10.0.\" OR \"10.1.\" OR \"10.50.\" OR \"192.168.\" OR \"172.16.\""
+    severity: medium
+    description: "Documents referencing internal IP addresses"
+
+  - name: "Content with SNMP Strings"
+    kql: "\"community string\" OR (\"snmp\" AND (\"public\" OR \"private\" OR \"community\"))"
+    severity: medium
+    description: "Documents mentioning SNMP community strings"
+
+  # ═══════════════════════════════════════════════════════════════
+  # LOW — Informational
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: "Archive Files"
+    kql: "filetype:zip OR filetype:7z OR filetype:tar OR filetype:gz OR filetype:rar"
+    severity: low
+    description: "Archive files that may contain sensitive contents"
+
+  - name: "Registry Exports"
+    kql: "filetype:reg"
+    severity: low
+    description: "Windows registry export files"
+
+  - name: "Log Files"
+    kql: "filetype:log"
+    severity: low
+    description: "Log files that may contain sensitive data"
+
+  - name: "Backup Files"
+    kql: "filetype:bkf OR filetype:bkp OR filetype:old OR filetype:orig"
+    severity: low
+    description: "Backup and original files"

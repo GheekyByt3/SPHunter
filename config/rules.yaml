@@ -1,0 +1,239 @@
+# SPHunter Detection Rules Configuration
+# Severity levels: critical, high, medium, low, info
+
+# ============================================================
+# FILENAME PATTERNS - Match against file names (case-insensitive)
+# ============================================================
+filename_rules:
+
+  # --- CRITICAL: Credentials & Keys ---
+  - name: "KeePass Database"
+    pattern: '.*\.(kdbx|kdb)$'
+    severity: critical
+    description: "KeePass password database"
+
+  - name: "Private Key"
+    pattern: '.*\.(pem|key|ppk|p12|pfx)$'
+    severity: critical
+    description: "Private key or certificate store"
+
+  - name: "SSH Key"
+    pattern: '^id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$'
+    severity: critical
+    description: "SSH key file"
+
+  - name: "AWS Credentials"
+    pattern: '^(credentials|\.aws_credentials|aws_access_keys).*'
+    severity: critical
+    description: "AWS credential file"
+
+  - name: "Azure Publish Settings"
+    pattern: '.*\.publishsettings$'
+    severity: critical
+    description: "Azure publish settings with embedded credentials"
+
+  - name: "RDP File"
+    pattern: '.*\.rdp$'
+    severity: critical
+    description: "Remote Desktop connection file (may contain saved creds)"
+
+  - name: "VPN Config"
+    pattern: '.*\.(ovpn|vpn|pcf)$'
+    severity: critical
+    description: "VPN configuration file"
+
+  - name: "Unattend XML"
+    pattern: '(unattend|autounattend|sysprep).*\.xml$'
+    severity: critical
+    description: "Windows unattended install file (often contains local admin creds)"
+
+  - name: "Web Config"
+    pattern: '^web\.config$'
+    severity: critical
+    description: "ASP.NET web.config (connection strings, credentials)"
+
+  - name: "Jenkins Credentials"
+    pattern: '^(credentials\.xml|secrets|master\.key|hudson\.util\.Secret)$'
+    severity: critical
+    description: "Jenkins credential storage file"
+
+  # --- HIGH: Sensitive Data Files ---
+  - name: "Environment File"
+    pattern: '^\.env.*'
+    severity: high
+    description: "Environment variable file (API keys, secrets)"
+
+  - name: "Database Backup"
+    pattern: '.*\.(sql|bak|mdf|ldf|dump|sqlite|db)$'
+    severity: high
+    description: "Database file or backup"
+
+  - name: "Password in Filename"
+    pattern: '.*(password|passwd|creds|credentials|secrets?)[\s_\-\.].*'
+    severity: high
+    description: "Filename suggests credential content"
+
+  - name: "Network Diagram"
+    pattern: '.*(network.?diagram|topology|infrastructure).*\.(vsd|vsdx|drawio|png|pdf)$'
+    severity: high
+    description: "Network infrastructure diagram"
+
+  - name: "Shadow File"
+    pattern: '^(shadow|passwd|gshadow)$'
+    severity: high
+    description: "Unix password/shadow file"
+
+  - name: "SAM/NTDS/SYSTEM"
+    pattern: '^(SAM|NTDS\.dit|SYSTEM|SECURITY)$'
+    severity: high
+    description: "Windows credential store file"
+
+  - name: "Docker Compose"
+    pattern: '^docker-compose.*\.ya?ml$'
+    severity: high
+    description: "Docker Compose (may contain embedded credentials)"
+
+  - name: "Terraform State"
+    pattern: '.*\.tfstate(\.backup)?$'
+    severity: high
+    description: "Terraform state file (contains secrets in plaintext)"
+
+  - name: "Ansible Vault"
+    pattern: '.*(vault|ansible).*\.(yml|yaml)$'
+    severity: high
+    description: "Ansible vault/playbook file"
+
+  - name: "Git Credentials"
+    pattern: '^\.git-credentials$'
+    severity: high
+    description: "Git credential store file"
+
+  # --- MEDIUM: Potentially Sensitive ---
+  - name: "Script File"
+    pattern: '.*\.(ps1|bat|cmd|sh|bash|vbs|wsf)$'
+    severity: medium
+    description: "Script file (may contain hardcoded creds)"
+
+  - name: "Configuration File"
+    pattern: '.*\.(ini|cfg|conf|config|properties|toml)$'
+    severity: medium
+    description: "Configuration file"
+
+  - name: "CSV Spreadsheet"
+    pattern: '.*\.csv$'
+    severity: medium
+    description: "CSV file (may contain exported sensitive data)"
+
+  - name: "IT Documentation"
+    pattern: '.*(runbook|playbook|sop|procedure|setup.?guide|install.?guide).*'
+    severity: medium
+    description: "IT operational documentation"
+
+  - name: "Salary/Financial"
+    pattern: '.*(salary|payroll|compensation|bonus|financial|budget|invoice).*\.(xlsx?|csv|pdf)$'
+    severity: medium
+    description: "Financial/salary document"
+
+  - name: "PII Data"
+    pattern: '.*(ssn|social.?security|tax.?id|passport|driver.?license|dob).*'
+    severity: medium
+    description: "File name suggests PII content"
+
+  - name: "Registry File"
+    pattern: '.*\.(reg)$'
+    severity: medium
+    description: "Windows registry export"
+
+  - name: "Backup Archive"
+    pattern: '.*\.(zip|7z|tar|gz|rar)$'
+    severity: low
+    description: "Archive file (may contain sensitive contents)"
+
+
+# ============================================================
+# CONTENT PATTERNS - Regex applied to file contents
+# ============================================================
+content_rules:
+
+  # --- Credentials ---
+  - name: "Hardcoded Password"
+    pattern: '(?i)(password|passwd|pwd)\s*[:=]\s*["\x27]?[^\s"'']{4,}'
+    severity: critical
+    description: "Hardcoded password in file"
+
+  - name: "Connection String"
+    pattern: '(?i)(Server|Data Source|Initial Catalog|User ID|Password)\s*=\s*[^;\n]+'
+    severity: critical
+    description: "Database connection string"
+
+  - name: "AWS Access Key"
+    pattern: 'AKIA[0-9A-Z]{16}'
+    severity: critical
+    description: "AWS Access Key ID"
+
+  - name: "AWS Secret Key"
+    pattern: '(?i)aws_secret_access_key\s*[:=]\s*[A-Za-z0-9/+=]{40}'
+    severity: critical
+    description: "AWS Secret Access Key"
+
+  - name: "Azure Storage Key"
+    pattern: 'DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{88}'
+    severity: critical
+    description: "Azure Storage account connection string"
+
+  - name: "Azure Client Secret"
+    pattern: '(?i)(client_secret|clientsecret)\s*[:=]\s*["\x27]?[A-Za-z0-9~._\-]{30,}'
+    severity: critical
+    description: "Azure AD client secret"
+
+  - name: "Private Key Block"
+    pattern: '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+    severity: critical
+    description: "Embedded private key"
+
+  - name: "Generic API Key"
+    pattern: '(?i)(api[_\-]?key|apikey|api[_\-]?token|access[_\-]?token)\s*[:=]\s*["\x27]?[A-Za-z0-9\-_.]{16,}'
+    severity: high
+    description: "API key or token"
+
+  - name: "Bearer Token"
+    pattern: '(?i)bearer\s+eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+'
+    severity: high
+    description: "JWT Bearer token"
+
+  - name: "GitHub Token"
+    pattern: '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}'
+    severity: critical
+    description: "GitHub personal access token"
+
+  - name: "Slack Token"
+    pattern: 'xox[bporas]-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,34}'
+    severity: critical
+    description: "Slack API token"
+
+  - name: "Generic Secret Assignment"
+    pattern: '(?i)(secret|token|key|credential)\s*[:=]\s*["\x27][^\s"'']{8,}'
+    severity: high
+    description: "Secret value assignment"
+
+  # --- PII ---
+  - name: "US Social Security Number"
+    pattern: '\b\d{3}-\d{2}-\d{4}\b'
+    severity: high
+    description: "US Social Security Number pattern"
+
+  - name: "Credit Card Number"
+    pattern: '\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'
+    severity: high
+    description: "Credit card number pattern"
+
+  # --- Network/Infrastructure ---
+  - name: "Internal IP Address"
+    pattern: '\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b'
+    severity: low
+    description: "Internal/private IP address"
+
+  - name: "SNMP Community String"
+    pattern: '(?i)(community|snmp)\s*[:=]\s*["\x27]?[^\s"'']{3,}'
+    severity: high
+    description: "SNMP community string"
