@@ -160,14 +160,44 @@ class ReportGenerator:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-    def generate_all(self, findings: list, sites: list, drives: list, crawl_stats: dict, auth_info: dict):
+    def generate_all(self, findings: list, sites: list, drives: list, crawl_stats: dict, auth_info: dict, all_files: list = None):
         """Generate reports in all formats."""
         console.print(f"\n[yellow][*] Generating reports in: {self.output_dir}[/yellow]")
 
         self._generate_csv(findings)
         self._generate_json(findings, sites, drives, crawl_stats, auth_info)
         self._generate_html(findings, sites, drives, crawl_stats, auth_info)
+        if all_files:
+            self._generate_all_files_csv(all_files)
         self._print_console_summary(findings, sites, drives, crawl_stats)
+
+    def _generate_all_files_csv(self, all_files: list):
+        """Generate a CSV listing every crawled file regardless of findings."""
+        csv_path = os.path.join(self.output_dir, "sphunter_all_files.csv")
+
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "Site", "Library", "File Path", "File Name", "Extension",
+                "Size (bytes)", "Last Modified", "Modified By", "Downloaded", "SharePoint URL",
+            ])
+            for file_info in all_files:
+                name = file_info.get("name", "")
+                ext = os.path.splitext(name)[1] if "." in name else "(none)"
+                writer.writerow([
+                    file_info.get("siteName", ""),
+                    file_info.get("driveName", ""),
+                    file_info.get("fullPath", ""),
+                    name,
+                    ext,
+                    file_info.get("size", 0),
+                    file_info.get("lastModifiedDateTime", ""),
+                    file_info.get("modifiedBy", ""),
+                    "Yes" if file_info.get("local_path") else "No",
+                    file_info.get("webUrl", ""),
+                ])
+
+        console.print(f"    [+] All files: {csv_path}")
 
     def _generate_csv(self, findings: list):
         """Generate CSV report."""

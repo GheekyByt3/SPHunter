@@ -415,6 +415,7 @@ def main():
         drives=drives,
         crawl_stats=crawl_stats,
         auth_info=auth_info,
+        all_files=all_files,
     )
 
     elapsed = time.time() - start_time

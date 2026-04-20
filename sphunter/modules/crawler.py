@@ -238,6 +238,15 @@ class SharePointCrawler:
             if name.endswith(ext):
                 return True
 
+        inspectable_names = {
+            "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+            "credentials", "passwd", "shadow",
+            ".netrc", ".bashrc", ".bash_profile", ".zshrc", ".profile",
+            ".npmrc", ".pypirc", "dockerfile",
+        }
+        if name in inspectable_names:
+            return True
+
         return False
 
     def _download_file(self, item: dict, drive: dict) -> str:
