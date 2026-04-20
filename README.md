@@ -177,8 +177,9 @@ Each run creates a timestamped directory with:
 | File | Description |
 |------|-------------|
 | `sphunter_report.html` | Interactive HTML report with sortable/filterable findings |
-| `sphunter_findings.csv` | CSV export for Excel analysis |
+| `sphunter_findings.csv` | Findings-only CSV — one row per rule match, for Excel analysis |
 | `sphunter_findings.json` | Machine-readable JSON with full metadata |
+| `sphunter_all_files.csv` | Every discovered file regardless of findings — useful for manual review |
 | `downloads/` | Downloaded files (only when `--download` is used) |
 
 ## Detection Rules

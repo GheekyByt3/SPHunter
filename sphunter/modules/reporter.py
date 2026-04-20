@@ -197,7 +197,7 @@ class ReportGenerator:
                     file_info.get("webUrl", ""),
                 ])
 
-        console.print(f"    [+] All files: {csv_path}")
+        console.print(f"    [+] Discovered files: {csv_path}")
 
     def _generate_csv(self, findings: list):
         """Generate CSV report."""
