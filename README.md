@@ -310,7 +310,7 @@ Depends on authentication method:
 
 ## Credits
 
-This tool was inspired by [SnaffPoint](https://github.com/nheiniger/SnaffPoint) by Nicolas Heiniger. SnaffPoint pioneered the idea of using SharePoint's Search API with KQL queries to find sensitive files during penetration tests. SPHunter builds on that concept by adding recursive crawling, content inspection, multiple authentication methods, and cookie-based auth support.
+SPHunter was inspired by the work of [SnaffPoint](https://github.com/nheiniger/SnaffPoint) and [ShareFiltrator](https://github.com/Friends-Security/sharefiltrator), which pioneered using SharePoint's Search API to surface sensitive files during penetration tests. SPHunter builds on these ideas with recursive crawling, content inspection, four authentication methods, dual API support, and structured reporting.
 
 ## License
 
