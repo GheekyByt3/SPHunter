@@ -44,7 +44,7 @@ def print_help():
     console.print("  python3 sphunter.py [cyan]<auth>[/cyan] [cyan]--mode[/cyan] [white]<search|crawl|both>[/white] [options]\n")
 
     console.print("[bold yellow]Authentication[/bold yellow] [dim](choose one)[/dim]")
-    console.print("  [cyan]-t, --token[/cyan] [white]<TOKEN>[/white]       Microsoft Graph API access token")
+    console.print("  [cyan]-t, --token[/cyan] [white]<TOKEN>[/white]       Microsoft Graph / SharePoint API access token")
     console.print("  [cyan]--device-code[/cyan]             Device code flow (MFA-compatible)")
     console.print("  [cyan]--client-id[/cyan] [white]<ID>[/white]          Azure AD application client ID")
     console.print("  [cyan]--client-secret[/cyan] [white]<SECRET>[/white]  Azure AD client secret")
@@ -221,11 +221,17 @@ def main():
         if not auth.auth_with_cookies(cookie_string, target_url):
             sys.exit(1)
     elif has_token:
-        if not auth.auth_with_token(args.token):
-            sys.exit(1)
-        if args.tenant:
+        # Set sp_base_url before validation so _validate_token() can fall back
+        # to SharePoint REST API for tokens whose aud is the SP resource GUID
+        if args.site_url:
+            from urllib.parse import urlparse
+            _parsed = urlparse(args.site_url)
+            auth.sp_base_url = f"{_parsed.scheme}://{_parsed.netloc}"
+        elif args.tenant:
             sp_host = args.tenant.replace(".onmicrosoft.com", "").replace(".com", "")
             auth.sp_base_url = f"https://{sp_host}.sharepoint.com"
+        if not auth.auth_with_token(args.token):
+            sys.exit(1)
     elif has_device_code:
         if not auth.auth_with_device_code(args.tenant, args.client_id):
             sys.exit(1)
