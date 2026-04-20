@@ -9,9 +9,13 @@ Analyzes discovered files for sensitive content using two layers:
 import os
 import re
 import yaml
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from rich.console import Console
 
 console = Console()
+
+CONTENT_TEXT_CAP = 50 * 1024   # 50KB max text per file
+CONTENT_PARSE_TIMEOUT = 10      # seconds before giving up on a file
 
 DEFAULT_RULES_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "config", "rules.yaml")
 
@@ -97,8 +101,11 @@ class SensitiveFileDetector:
             filename_hits = self._check_filename(file_info["name"])
             file_findings.extend(filename_hits)
 
-            # Layer 2: Content inspection
-            if content_inspection and file_info.get("local_path"):
+            # Layer 2: Content inspection — skip if filename already hit black
+            filename_max_sev = max(
+                (SEVERITY_SCORES.get(h["severity"], 0) for h in filename_hits), default=0
+            )
+            if content_inspection and file_info.get("local_path") and filename_max_sev < SEVERITY_SCORES["black"]:
                 content_hits = self._check_content(file_info["local_path"], file_info["name"])
                 file_findings.extend(content_hits)
 
@@ -160,36 +167,85 @@ class SensitiveFileDetector:
     def _check_content(self, local_path: str, filename: str) -> list:
         """Scan file content against all content rules."""
         hits = []
+        content = self._extract_text(local_path, filename)
+        if not content:
+            return hits
 
-        try:
-            # Read file content — handle binary gracefully
-            with open(local_path, "r", errors="ignore", encoding="utf-8") as f:
-                content = f.read()
-
-            if not content:
-                return hits
-
-            for rule in self.content_rules:
-                matches = rule["_compiled"].findall(content)
-                if matches:
-                    # Get first match for context, truncate for reporting
-                    sample = matches[0] if isinstance(matches[0], str) else str(matches[0])
-                    # Mask sensitive values in the sample (show first/last 4 chars)
-                    masked_sample = self._mask_value(sample)
-
-                    hits.append({
-                        "rule_name": rule["name"],
-                        "severity": SEVERITY_MAP.get(rule["severity"], rule["severity"]),
-                        "description": rule["description"],
-                        "match_type": "content",
-                        "matched_value": masked_sample,
-                        "match_count": len(matches),
-                    })
-
-        except (OSError, IOError) as e:
-            console.print(f"[dim]    [!] Could not read {filename}: {e}[/dim]")
+        for rule in self.content_rules:
+            matches = rule["_compiled"].findall(content)
+            if matches:
+                sample = matches[0] if isinstance(matches[0], str) else str(matches[0])
+                hits.append({
+                    "rule_name": rule["name"],
+                    "severity": SEVERITY_MAP.get(rule["severity"], rule["severity"]),
+                    "description": rule["description"],
+                    "match_type": "content",
+                    "matched_value": self._mask_value(sample),
+                    "match_count": len(matches),
+                })
 
         return hits
+
+    def _extract_text(self, local_path: str, filename: str) -> str:
+        """Extract readable text from a file, dispatched by extension with timeout + size cap."""
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(self._parse_file, local_path, filename)
+                text = future.result(timeout=CONTENT_PARSE_TIMEOUT)
+                return (text or "")[:CONTENT_TEXT_CAP]
+        except FuturesTimeout:
+            console.print(f"[dim]    [!] Parse timeout on {filename}, skipping content[/dim]")
+            return ""
+        except Exception as e:
+            console.print(f"[dim]    [!] Could not parse {filename}: {e}[/dim]")
+            return ""
+
+    @staticmethod
+    def _parse_file(local_path: str, filename: str) -> str:
+        """Dispatch to the right parser based on file extension."""
+        ext = os.path.splitext(filename.lower())[1]
+
+        if ext == ".docx":
+            import docx
+            doc = docx.Document(local_path)
+            return "\n".join(p.text for p in doc.paragraphs)
+
+        if ext == ".xlsx":
+            import openpyxl
+            wb = openpyxl.load_workbook(local_path, read_only=True, data_only=True)
+            parts = []
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows(values_only=True):
+                    parts.append(" ".join(str(c) for c in row if c is not None))
+            wb.close()
+            return "\n".join(parts)
+
+        if ext == ".pptx":
+            from pptx import Presentation
+            prs = Presentation(local_path)
+            parts = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        parts.append(shape.text)
+            return "\n".join(parts)
+
+        if ext == ".pdf":
+            from pdfminer.high_level import extract_text as pdf_extract
+            return pdf_extract(local_path) or ""
+
+        if ext == ".msg":
+            import extract_msg
+            with extract_msg.Message(local_path) as msg:
+                return f"{msg.subject or ''}\n{msg.body or ''}"
+
+        if ext == ".rtf":
+            from striprtf.striprtf import rtf_to_text
+            with open(local_path, "r", errors="ignore") as f:
+                return rtf_to_text(f.read())
+
+        with open(local_path, "r", errors="ignore", encoding="utf-8") as f:
+            return f.read()
 
     @staticmethod
     def _mask_value(value: str) -> str:

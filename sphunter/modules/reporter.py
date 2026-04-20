@@ -169,8 +169,6 @@ class ReportGenerator:
         self._generate_html(findings, sites, drives, crawl_stats, auth_info)
         self._print_console_summary(findings, sites, drives, crawl_stats)
 
-        console.print(f"[green][+] Reports saved to: {self.output_dir}[/green]")
-
     def _generate_csv(self, findings: list):
         """Generate CSV report."""
         csv_path = os.path.join(self.output_dir, "sphunter_findings.csv")

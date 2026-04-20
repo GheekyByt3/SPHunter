@@ -217,6 +217,8 @@ class SharePointCrawler:
             ".pfx", ".p12",  # Certificate stores
             ".ppk",  # PuTTY keys
             ".ovpn",  # OpenVPN configs
+            ".docx", ".xlsx", ".pptx",
+            ".pdf", ".msg", ".rtf",
         }
 
         # Check by extension

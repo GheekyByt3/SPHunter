@@ -231,6 +231,7 @@ class SharePointRESTCrawler:
             ".pem", ".key", ".crt", ".cer", ".csr",
             ".kdbx", ".kdb", ".pfx", ".p12", ".ppk", ".ovpn",
             ".docx", ".xlsx", ".pptx",
+            ".pdf", ".msg", ".rtf",
         }
 
         for ext in inspectable_extensions:
