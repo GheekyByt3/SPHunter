@@ -60,13 +60,29 @@ Displays a code to enter at `microsoft.com/devicelogin`. The tool automatically 
 
 ### Option 3: Access Token
 
-If you have a Microsoft Graph or SharePoint API access token:
+If you have a Microsoft Graph or SharePoint REST API access token:
 
 ```bash
 python3 sphunter.py --token "eyJ0eXAi..." \
   --site-url "https://contoso.sharepoint.com/sites/IT" \
   --mode both
 ```
+
+**Two token types are accepted:**
+
+| Token Type | Audience (`aud` claim) | Where to get it |
+|------------|----------------------|-----------------|
+| **Microsoft Graph token** | `https://graph.microsoft.com` | Browser dev tools → filter `graph.microsoft.com` requests → `Authorization` header |
+| **SharePoint REST token** | `https://contoso.sharepoint.com` | Browser dev tools → filter `_api` requests → `Authorization` header |
+
+To grab a token from the browser:
+1. Open the target SharePoint site in your browser
+2. Press F12 → Network tab
+3. Filter by `graph.microsoft.com` (for a Graph token) or `_api` (for a SharePoint token)
+4. Click any matching request → Headers → copy the `Authorization` value (strip the `Bearer ` prefix)
+5. Pass just the JWT: `--token "eyJ0eXAi..."`
+
+SPHunter auto-detects which type you provided and validates against the correct API. SharePoint REST tokens require `--site-url` to be set so the tool knows which tenant to validate against.
 
 ### Option 4: Client Credentials
 

@@ -351,43 +351,86 @@ class AuthHandler:
         except (ValueError, KeyError, json.JSONDecodeError):
             return None
 
-    def _validate_token(self) -> bool:
-        """Validate the token by making a simple Graph API call."""
+    def _extract_sp_url_from_token(self) -> str:
+        """Parse JWT claims to extract the SharePoint base URL from the audience."""
         try:
-            response = requests.get(
-                f"{GRAPH_BASE_URL}/me",
-                headers={
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json",
-                },
-                timeout=10,
-            )
+            parts = self.access_token.split(".")
+            if len(parts) != 3:
+                return None
+            payload = parts[1]
+            payload += "=" * (4 - len(payload) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            aud = claims.get("aud", "")
+            # SharePoint tokens have aud like "https://contoso.sharepoint.com"
+            if isinstance(aud, str) and ".sharepoint.com" in aud:
+                from urllib.parse import urlparse
+                parsed = urlparse(aud)
+                if parsed.scheme and parsed.netloc:
+                    return f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            pass
+        return None
+
+    def _validate_token(self) -> bool:
+        """Validate the token against Graph API first, then SharePoint REST API as fallback."""
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        try:
+            # Try Graph /me (delegated tokens)
+            response = requests.get(f"{GRAPH_BASE_URL}/me", headers=headers, timeout=10)
             if response.status_code == 200:
                 user_info = response.json()
                 display = user_info.get("displayName", user_info.get("userPrincipalName", "Unknown"))
                 console.print(f"[cyan][*] Authenticated as: {display}[/cyan]")
+                self.api_type = "graph"
                 return True
 
-            # Try organization endpoint for app-only tokens
-            response = requests.get(
-                f"{GRAPH_BASE_URL}/organization",
-                headers={
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json",
-                },
-                timeout=10,
-            )
+            # Try Graph /organization (app-only tokens)
+            response = requests.get(f"{GRAPH_BASE_URL}/organization", headers=headers, timeout=10)
             if response.status_code == 200:
                 orgs = response.json().get("value", [])
                 if orgs:
                     org_name = orgs[0].get("displayName", "Unknown")
                     console.print(f"[cyan][*] Authenticated to tenant: {org_name}[/cyan]")
+                self.api_type = "graph"
                 return True
 
+        except requests.RequestException as e:
+            console.print(f"[red][-] Graph API validation failed: {e}[/red]")
+
+        # Graph rejected the token — try SharePoint REST API
+        # SharePoint tokens have audience "https://contoso.sharepoint.com"
+        sp_url = self._extract_sp_url_from_token() or self.sp_base_url
+        if not sp_url:
+            console.print("[red][-] Token rejected by Graph API and no SharePoint URL available for fallback[/red]")
+            console.print("[yellow]    Hint: pass --site-url to enable SharePoint REST API token validation[/yellow]")
+            return False
+
+        try:
+            sp_headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Accept": "application/json;odata=nometadata",
+            }
+            response = requests.get(
+                f"{sp_url}/_api/web/currentuser?$select=Title,LoginName",
+                headers=sp_headers,
+                timeout=10,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                display = data.get("Title") or data.get("LoginName") or "Unknown"
+                console.print(f"[cyan][*] Authenticated as: {display} (SharePoint REST API)[/cyan]")
+                self.api_type = "sharepoint"
+                self.sp_base_url = sp_url
+                return True
+
+            console.print(f"[red][-] SharePoint REST API validation failed (HTTP {response.status_code})[/red]")
             return False
 
         except requests.RequestException as e:
-            console.print(f"[red][-] Token validation request failed: {e}[/red]")
+            console.print(f"[red][-] SharePoint REST API validation request failed: {e}[/red]")
             return False
 
     def get_user_context(self) -> dict:
