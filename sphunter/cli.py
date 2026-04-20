@@ -420,7 +420,6 @@ def main():
 
     elapsed = time.time() - start_time
     console.print(f"\n[bold green]Done![/bold green] Completed in {elapsed:.1f}s")
-    console.print(f"[dim]Reports: {output_dir}[/dim]")
 
 
 if __name__ == "__main__":
