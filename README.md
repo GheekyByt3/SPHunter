@@ -82,7 +82,7 @@ To grab a token from the browser:
 4. Click any matching request → Headers → copy the `Authorization` value (strip the `Bearer ` prefix)
 5. Pass just the JWT: `--token "eyJ0eXAi..."`
 
-SPHunter auto-detects which type you provided and validates against the correct API. SharePoint REST tokens require `--site-url` to be set so the tool knows which tenant to validate against.
+SPHunter auto-detects which type you provided and validates against the correct API. For SharePoint REST tokens, the tenant URL is extracted automatically from the token's `aud` claim. If that fails (uncommon), pass `--site-url` as a fallback so the tool knows which tenant to validate against.
 
 ### Option 4: Client Credentials
 
@@ -179,7 +179,7 @@ Each run creates a timestamped directory with:
 | `sphunter_report.html` | Interactive HTML report with sortable/filterable findings |
 | `sphunter_findings.csv` | Findings-only CSV — one row per rule match, for Excel analysis |
 | `sphunter_findings.json` | Machine-readable JSON with full metadata |
-| `sphunter_all_files.csv` | Every discovered file regardless of findings — useful for manual review |
+| `sphunter_all_files.csv` | Every discovered file regardless of findings — useful for manual review (crawl / both mode only) |
 | `downloads/` | Downloaded files (only when `--download` is used) |
 
 ## Detection Rules
@@ -190,7 +190,7 @@ Match against file names using case-insensitive regex:
 filename_rules:
   - name: "KeePass Database"
     pattern: '.*\.(kdbx|kdb)$'
-    severity: critical
+    severity: black
     description: "KeePass password database"
 ```
 
@@ -200,7 +200,7 @@ Match against file contents (requires `--download`):
 content_rules:
   - name: "AWS Access Key"
     pattern: 'AKIA[0-9A-Z]{16}'
-    severity: critical
+    severity: black
     description: "AWS Access Key ID"
 ```
 
@@ -210,7 +210,7 @@ KQL queries for SharePoint Search API (used in `--mode search` and `--mode both`
 queries:
   - name: "PowerShell Credential Scripts"
     kql: '(filetype:ps1) AND ("SecureString" OR "PSCredential")'
-    severity: critical
+    severity: red
     description: "PowerShell scripts containing credential handling"
 ```
 
@@ -256,7 +256,8 @@ SPHunter Pipeline:
           │
   Phase 5: REPORT
   ├── Interactive HTML with sort/filter
-  ├── CSV for Excel analysis
+  ├── Findings CSV for Excel analysis
+  ├── Discovered files CSV (crawl/both mode only)
   └── JSON for automation
 ```
 
@@ -278,7 +279,7 @@ SPHunter/
 │       ├── searcher.py          # KQL search query engine
 │       ├── discovery.py         # Site brute-force discovery via wordlist
 │       ├── detector.py          # Filename + content detection engine
-│       └── reporter.py          # Report generation (HTML, CSV, JSON)
+│       └── reporter.py          # Report generation (HTML, CSV, JSON, all-files CSV)
 ├── config/
 │   ├── rules.yaml               # Detection rules (28 filename + 16 content)
 │   ├── search_queries.yaml      # KQL search queries (52 queries)

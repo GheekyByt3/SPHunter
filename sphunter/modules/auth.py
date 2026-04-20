@@ -437,10 +437,30 @@ class AuthHandler:
         """Get information about the current authentication context."""
         info = {"auth_method": self.auth_method}
 
-        # Cookie auth can't call Graph API — return what we know
         if self.auth_method == "cookies":
             info["user"] = "cookie-based session"
             info["display_name"] = "cookie-based session"
+            return info
+
+        # SharePoint REST tokens can't call Graph — use SP currentuser instead
+        if self.api_type == "sharepoint" and self.sp_base_url:
+            try:
+                response = requests.get(
+                    f"{self.sp_base_url}/_api/web/currentuser?$select=Title,LoginName",
+                    headers={
+                        "Authorization": f"Bearer {self.access_token}",
+                        "Accept": "application/json;odata=nometadata",
+                    },
+                    timeout=10,
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    info["user"] = data.get("LoginName", "Unknown")
+                    info["display_name"] = data.get("Title", "Unknown")
+                    return info
+            except requests.RequestException:
+                pass
+            info["user"] = "unknown (SharePoint REST API unavailable)"
             return info
 
         try:
