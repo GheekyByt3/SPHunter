@@ -230,6 +230,10 @@ def main():
         elif args.tenant:
             sp_host = args.tenant.replace(".onmicrosoft.com", "").replace(".com", "")
             auth.sp_base_url = f"https://{sp_host}.sharepoint.com"
+        elif args.sites:
+            console.print("[red][-] --sites requires --tenant or --site-url when using --token[/red]")
+            console.print("[dim]    Example: --token <token> --tenant contoso.onmicrosoft.com --sites IT,HR[/dim]")
+            sys.exit(1)
         if not auth.auth_with_token(args.token):
             sys.exit(1)
     elif has_device_code:
